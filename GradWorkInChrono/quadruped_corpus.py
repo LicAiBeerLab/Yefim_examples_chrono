@@ -1,11 +1,10 @@
-from doctest import debug_script
 import pychrono.core as chr
 import pychrono.irrlicht as chrirr
 import numpy as np
 import leg as lg
 import robot_parameters as param
-import control_locomotion as ctrl
 
+# Constant parameters
 BODY_DIM = param.body_dim
 BODY_DENSITY = param.body_density
 
@@ -14,12 +13,17 @@ HIP_RADIUS = param.hip_radius
 HIP_LENGTH = param.hip_length
 HIP_DENSITY = param.hip_density
 
+#------------------------
+# Function of assembling
+# corpus with legs
+#------------------------
 def assemblingRobot(chrono_system,corpus_body,coord_body):
     idx_legs = ['fr_right', 'fr_left', 'rr_right', 'rr_left']
-    vec_hip = {}
-    vec_off_leg = {}
-    vec_hip_body = {}
-    vec_legs  = {}
+    vec_hip = {} # frame hips relative frame corpus
+    vec_off_leg = {} # offsets relative hip
+    vec_hip_body = {} # dictionary hips body
+    vec_legs  = {} # dictionary legs
+    # condition orientation offsets
     for idx in idx_legs:
         if idx.split('_')[0] == 'rr':
             sig_x = -1
@@ -33,11 +37,13 @@ def assemblingRobot(chrono_system,corpus_body,coord_body):
         vec_hip[idx] = coord_body + chr.ChVectorD(sig_x*(BODY_DIM[0]/2+HIP_OFFSET),0,sig_z*(BODY_DIM[1]-HIP_LENGTH)/2)
         vec_off_leg[idx] = chr.ChVectorD(0,0,sig_z*(HIP_LENGTH+lg.FEMUR_WIDTH)/2)
         
+        # Create hip body
         vec_hip_body[idx] = chr.ChBodyEasyCylinder(HIP_RADIUS, HIP_LENGTH, HIP_DENSITY)
         vec_hip_body[idx].SetPos(vec_hip[idx])
         vec_hip_body[idx].SetRot(chr.Q_ROTATE_Y_TO_Z)
         chrono_system.Add(vec_hip_body[idx])
         
+        #Weld Joint
         joint_corp_hip = chr.ChLinkMateFix()
         joint_corp_hip.Initialize(vec_hip_body[idx],corpus_body,chr.ChFrameD(vec_hip[idx]))
         chrono_system.Add(joint_corp_hip)
@@ -61,42 +67,54 @@ class quadruped:
         self.__corpus_body = chr.ChBodyEasyBox(BODY_DIM[0],BODY_DIM[2],
                                         BODY_DIM[1],BODY_DENSITY)
         self.__corpus_body.SetPos(start_position)
+        
+        # Arrays with data corpus in world coordinate
         self.__traj_x = np.array([0, start_position.x])
         self.__vel_x_t = np.array([0,0])
         
+    # Initial chrono system
     def setChronoSystem(self, chrono_system):
         self.__chr_system = chrono_system
         self.__chr_system.Add(self.__corpus_body)
         
         self.__idx_legs, self.__legs = assemblingRobot(self.__chr_system, self.__corpus_body,self.__strt_coord)
-        
+    
+    # getter current coords corpus
     def getCoordCorpus(self):
         return self.__corpus_body.GetFrame_COG_to_abs().GetPos()
     
+    # getter current velocity corpus
     def getVelCorpus(self):
         return self.__corpus_body.GetFrame_COG_to_abs().GetPos_dt()
         
+    # getter chrono corpus body 
     def getCorpusBody(self):
         return self.__corpus_body   
-        
+    
+    # setter locomotion control
     def setLocomotion(self, locomotion):
         self.__locomotion = locomotion
         
+    # getter locmotion control
     def getLocomotion(self):
         return self.__locomotion
     
+    # update object's attributes
     def update(self,current_time):
         data_x = np.array([current_time, self.getCoordCorpus().x])
         vel_x_data = np.array([current_time, self.getVelCorpus().x])
         self.__traj_x = np.c_[self.__traj_x, data_x]
         self.__vel_x_t = np.c_[self.__vel_x_t, vel_x_data]
-        
+    
+    # getter arrays trajectory movments on x    
     def getTrajX(self):
         return self.__traj_x
     
+    # getter arrays x velocity 
     def getVelX(self):
         return self.__vel_x_t
         
+    # Send current desired position
     def updateControlLegs(self,current_time):
         
         for idx in self.__idx_legs:
@@ -128,11 +146,8 @@ class quadruped:
             myapplication.BeginScene()
             myapplication.DrawAll()
             chrirr.drawAllLinkframes(self.__chr_system, myapplication.GetVideoDriver(),1)
-            #chrirr.drawAllLinks(self.__chr_system, myapplication.GetVideoDriver(),1)
-            #chrirr.drawAllCOGs(self.chr_system, myapplication.GetVideoDriver(),1)
             time.append(self.__chr_system.GetChTime())
             myapplication.DoStep()
             myapplication.EndScene()
             if self.__chr_system.GetChTime() > time_stop:
                 myapplication.GetDevice().closeDevice()
-        #return time

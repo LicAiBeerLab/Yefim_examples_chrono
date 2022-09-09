@@ -4,6 +4,7 @@ import robot_parameters as param
 import quadruped_corpus as quadruped
 import numpy as np
 
+# Constant parameters
 GROUND_DIM = param.ground
 
 class Simulate:
@@ -36,6 +37,7 @@ class Simulate:
         
         self.__chr_system.Add(ground_body)
         
+        # Planar joint
         z_bound_robot = chr.ChLinkLockPlanePlane()
         z_bound_robot.Initialize(self.__model_quadruped.getCorpusBody(),ground_body,
                                  chr.ChCoordsysD(chr.ChVectorD(0,0.44,0),chr.ChQuaternionD(1,0,0,0)))
@@ -105,9 +107,6 @@ class Simulate:
             self.__myapplication.BeginScene()
             self.__myapplication.DrawAll()
             curr_time = self.__chr_system.GetChTime()
-            #chrirr.drawAllLinkframes(self.__chr_system, self.__myapplication.GetVideoDriver(),1)
-            #chrirr.drawAllLinks(self.__chr_system, self.__myapplication.GetVideoDriver(),1)
-            #chrirr.drawAllCOGs(self.chr_system, self.__myapplication.GetVideoDriver(),1)
             self.__model_quadruped.updateControlLegs(curr_time)
             stop = self.FlagsStopSimulate(curr_time, True)
             self.__myapplication.DoStep()
@@ -118,7 +117,6 @@ class Simulate:
             self.__model_quadruped.update(curr_time)
             if stop:
                 self.__myapplication.GetDevice().closeDevice()
-        #return time
         print(f"x_stop: {self.__final_coord_x}, time_stop: {self.__final_time}, agressive: {self.__model_quadruped.getLocomotion().getAggressiveness()}")
         del self.__myapplication
     
