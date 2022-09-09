@@ -1,10 +1,8 @@
 import pychrono.core as chr
 import pychrono.irrlicht as chrirr
-import numpy as np
 import robot_parameters as param
-import scipy as sp
 
-
+# Constant parameters
 FEMUR_LENGTH = param.femur_length
 FEMUR_HEIGHT = param.femur_height
 FEMUR_WIDTH = param.femur_width
@@ -58,6 +56,7 @@ class leg():
         knee_body.SetCollide(False)
         self.__chr_system.Add(knee_body)
         
+        # Wild Joint
         knee_weld = chr.ChLinkMateFix()
         knee_weld.Initialize(knee_body,self.__femur_body,chr.ChFrameD(start_position + chr.ChVectorD(0,-FEMUR_LENGTH,0)))
         self.__chr_system.Add(knee_weld)
@@ -70,7 +69,7 @@ class leg():
         self.__tibia_body.SetCollide(False)
         self.__chr_system.Add(self.__tibia_body)
         
-        
+        # Material surface for collision
         foot_material = chr.ChMaterialSurfaceNSC()
         foot_material.SetFriction(0.9)
         foot_material.SetDampingF(0.3)
@@ -82,6 +81,7 @@ class leg():
         self.__foot_body.SetPos(start_position + chr.ChVectorD(0,-FEMUR_LENGTH-TIBIA_LENGTH,0))
         self.__chr_system.Add(self.__foot_body)
         
+        # Wild Joint
         foot_weld = chr.ChLinkMateFix()
         foot_weld.Initialize(self.__foot_body,self.__tibia_body,chr.ChFrameD(start_position+chr.ChVectorD(0,-FEMUR_LENGTH-TIBIA_LENGTH,0)))
         self.__chr_system.Add(foot_weld)
@@ -89,14 +89,14 @@ class leg():
     def CreaterJoints(self):
         
         #self.__motor_hip = chr.ChLinkMotorRotationTorque()
-        self.__motor_hip = chr.ChLinkMotorRotationAngle()
+        self.__motor_hip = chr.ChLinkMotorRotationAngle() # Motor with intergrated PID
         self.__motor_hip.Initialize(self.__femur_body,self.__hip_body,chr.ChFrameD(self.hip_coord))
         self.__chr_system.Add(self.__motor_hip)
         
         self.__teta_hip = self.__motor_hip.GetMotorRot()
         
-       #torque = chr.ChFunction_Sine(0,1,0.05)
-       #self.__motor_hip.SetTorqueFunction(torque)
+        #torque = chr.ChFunction_Sine(0,1,0.05)
+        #self.__motor_hip.SetTorqueFunction(torque)
         
         #self.__motor_knee = chr.ChLinkMotorRotationTorque()
         self.__motor_knee = chr.ChLinkMotorRotationAngle()
@@ -105,6 +105,7 @@ class leg():
         
         self.__teta_knee = self.__motor_knee.GetMotorRot()
         
+            
     def PDControl(self,des_teta_hip, des_teta_knee):
         self.__teta_hip = self.__motor_hip.GetMotorRot()
         self.__teta_knee = self.__motor_knee.GetMotorRot()
@@ -166,47 +167,6 @@ class leg():
             self.__teta_knee = self.__motor_knee.GetMotorRot()
             myapplication.BeginScene()
             myapplication.DrawAll()
-            chrirr.drawAllLinkframes(self.__chr_system, myapplication.GetVideoDriver(),1)
-            chrirr.drawAllLinks(self.__chr_system, myapplication.GetVideoDriver(),1)
-            #chrirr.drawAllCOGs(self.__chr_system, myapplication.GetVideoDriver(),1)
-            time.append(self.__chr_system.GetChTime())
-            ang_hip.append(self.__motor_hip.GetMotorRot())
-            omg_hip.append(self.__motor_hip.GetMotorRot_dt())
-            myapplication.DoStep()
-            myapplication.EndScene()
-            if self.__chr_system.GetChTime() > time_stop:
-                myapplication.GetDevice().closeDevice()
-        return time, ang_hip, omg_hip
-    
-    def SimulateTestControl(self, time_stop=6, time_step=0.001):
-        myapplication = chrirr.ChIrrApp(self.__chr_system, 'Test_Quadruped_Leg_Control',
-                                        chrirr.dimension2du(1280,720))
-
-        myapplication.AddTypicalSky()
-        myapplication.AddTypicalCamera(chrirr.vector3df(0,0,1.7))
-        myapplication.AddLightWithShadow(chrirr.vector3df(2,4,2),    # point
-                                        chrirr.vector3df(0,0,0),    # aimpoint
-                                        9,                 # radius (power)
-                                        1,9,               # near, far
-                                        60)                # angle of FOV
-        myapplication.AssetBindAll()
-        myapplication.AssetUpdateAll()
-        myapplication.AddShadowAll()
-        
-        time = []
-        ang_hip = []
-        omg_hip = []
-        
-
-        
-        myapplication.SetTimestep(time_step)
-        myapplication.SetTryRealtime(True)
-        while(myapplication.GetDevice().run()):
-            self.__teta_hip = self.__motor_hip.GetMotorRot()
-            self.__teta_knee = self.__motor_knee.GetMotorRot()
-            myapplication.BeginScene()
-            myapplication.DrawAll()
-            chrirr.drawAllLinkframes(self.__chr_system, myapplication.GetVideoDriver(),1)
             chrirr.drawAllLinks(self.__chr_system, myapplication.GetVideoDriver(),1)
             time.append(self.__chr_system.GetChTime())
             ang_hip.append(self.__motor_hip.GetMotorRot())

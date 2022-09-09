@@ -1,23 +1,30 @@
 import scipy.interpolate as spline
 import numpy as np
 
-
+#---------------------------------------
+# Interpolate trajectory link movements
+#---------------------------------------
 def trajInterpolate(points, period, evalTimes):
     num_points = np.size(points)
     traj_times = np.linspace(0,period,num_points)
     
+    # Coefficents cubic spline
     tck = spline.splrep(traj_times,points)
     time_arr = np.arange(0,period+evalTimes,evalTimes)
     
+    # Interpolation
     out = spline.splev(time_arr, tck)
     return np.c_[time_arr, out]
 
+#---------------------------------------
+# Class of locmotion control
+#---------------------------------------
 class ControlLocomotion:
     def __init__(self, points, period, evalTimes, offsets_legs = {"front" : 50, "rear": 50}):
         
         self.__idx_motors = ['fr_hip', 'fr_knee', 'rr_hip', 'rr_knee']
-        self.__points_motor = {}
-        self.__traj_motor = {}
+        self.__points_motor = {} # - input points 
+        self.__traj_motor = {} # - interpolating trajectory
         self.__num_motor_points = int(np.size(points)/4)
         self.__offsets_legs = offsets_legs
         self.__period = period
@@ -26,7 +33,6 @@ class ControlLocomotion:
         end = self.__num_motor_points - 1
         for idx in self.__idx_motors:
             self.__points_motor[idx] = np.r_[points[strt:end],points[strt]]
-            #print(self.__points_motor[idx])
             self.__traj_motor[idx] = trajInterpolate(self.__points_motor[idx], period, evalTimes)
             strt += self.__num_motor_points
             end += self.__num_motor_points
@@ -41,6 +47,7 @@ class ControlLocomotion:
     def ger_indexMotors(self):
         return self.__idx_motors
     
+    # Method calculation aggressiveness for cost function
     def getAggressiveness(self):
         n = 0
         diffs = np.array([])
@@ -52,17 +59,12 @@ class ControlLocomotion:
                 
         return n
         
-            
+    # getting desired potitions motor for current time
     def get_inputMotor(self, current_time, name_motor = "fr_hip_right"):
         det_motor = name_motor.split("_")
         des_idx_motor = det_motor[0] + "_" + det_motor[1]
         input_motor = 0.
         traj_des_motor = self.__traj_motor[des_idx_motor]
-        #print(name_motor)
-        #test1 = np.abs(traj_des_motor[:,0]-np.mod(current_time,traj_des_motor[-1,0]))
-        #test2 = np.abs(traj_des_motor[:,0]-np.mod(current_time-self.__offsets_legs["front"]*traj_des_motor[-1,0]/100,traj_des_motor[-1,0]))# < 10**-4
-        #print(current_time,np.min(test2),np.min(test1))
-        ##print(test1)
         if det_motor[2] == "right":
             if det_motor[0] == "fr":
                 input_motor = traj_des_motor[np.abs(traj_des_motor[:,0]-np.mod(current_time,traj_des_motor[-1,0])) < 10**-4,1]
