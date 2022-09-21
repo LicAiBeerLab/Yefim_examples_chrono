@@ -62,8 +62,7 @@ class AcrobotSystem():
     def CreateBodies(self, body_material):
         
         # Initilize color asset for body
-        color1 = chrono.ChColorAsset()
-        color1.SetColor(chrono.ChColor(120, 0, 120))
+        color1 = chrono.ChColor(1, 0, 1)
         
         # Cube/ground
         self.body_cube = chrono.ChBody()
@@ -77,8 +76,8 @@ class AcrobotSystem():
         # Create shape and add assets to body for visualisation box
         cube_shape = chrono.ChBoxShape()
         cube_shape.GetBoxGeometry().Size = chrono.ChVectorD(self.xyz_cube/2,self.xyz_cube/2,self.xyz_cube/2)
-        self.body_cube.GetAssets().push_back(cube_shape)
-        self.body_cube.GetAssets().push_back(color1)
+        cube_shape.SetColor(color1)
+        self.body_cube.AddVisualShape(cube_shape)
         
         self.chrono_system.Add(self.body_cube)
         
@@ -91,13 +90,13 @@ class AcrobotSystem():
         self.body_rod_1.SetBodyFixed(False)
         self.body_rod_1.SetCollide(False)
 
-        color2 = chrono.ChColorAsset()
-        color2.SetColor(chrono.ChColor(0,120,120))
+        
+        color2= chrono.ChColor(0,1,1)
         rod_1_shape = chrono.ChBoxShape()
         
         rod_1_shape.GetBoxGeometry().Size = chrono.ChVectorD(self.len_rod_1/2,self.xz_rod/2,self.xz_rod/2)
-        self.body_rod_1.GetAssets().push_back(rod_1_shape)
-        self.body_rod_1.GetAssets().push_back(color2)
+        rod_1_shape.SetColor(color2)
+        self.body_rod_1.AddVisualShape(rod_1_shape)
         
         self.chrono_system.Add(self.body_rod_1)
         
@@ -110,13 +109,12 @@ class AcrobotSystem():
         self.body_rod_2.SetBodyFixed(False)
         self.body_rod_2.SetCollide(False)
 
-        color3 = chrono.ChColorAsset()
-        color3.SetColor(chrono.ChColor(120,120,0))
+        color3 = chrono.ChColor(1,1,0)
         rod_2_shape = chrono.ChBoxShape()
         
         rod_2_shape.GetBoxGeometry().Size = chrono.ChVectorD(self.len_rod_2/2,self.xz_rod/2,self.xz_rod/2)
-        self.body_rod_2.GetAssets().push_back(rod_2_shape)
-        self.body_rod_2.GetAssets().push_back(color3)
+        rod_2_shape.SetColor(color3)
+        self.body_rod_2.AddVisualShape(rod_2_shape)
         
         self.chrono_system.Add(self.body_rod_2)
     
@@ -138,23 +136,15 @@ class AcrobotSystem():
 
     def Simulate(self, time = 20, time_step = 0.005):
         #Irrlicht module's object for setting runtime 3D visualisation
-        #                                   chrono system, name of window, size of window
-        myapplication = chrirr.ChIrrApp(self.chrono_system, 'Acrobot', chrirr.dimension2du(720,720))
-        
         # Initilize skybox, camera, lights, shadow by default
-        myapplication.AddTypicalSky()
-        myapplication.AddTypicalCamera(chrirr.vector3df(0,0,1.7))
-        myapplication.AddLightWithShadow(chrirr.vector3df(0,0,1.7),    # point
-                                        chrirr.vector3df(0,0,0),    # aimpoint
-                                        9,                 # radius (power)
-                                        1,9,               # near, far
-                                        60)                # angle of FOV
-        myapplication.AssetBindAll()
-        myapplication.AssetUpdateAll()
-        myapplication.AddShadowAll()
+        myapplication = chrirr.ChVisualSystemIrrlicht()
+        myapplication.AttachSystem(self.chrono_system)
+        myapplication.SetWindowSize(720,720)
+        myapplication.SetWindowTitle("Acrobot")
+        myapplication.Initialize()
+        myapplication.AddCamera(chrono.ChVectorD(0,0,1.7))
+        myapplication.AddTypicalLights()
         
-        myapplication.SetTimestep(time_step)
-        myapplication.SetTryRealtime(True)
 
         # List of output data
         arr_time = []
@@ -163,7 +153,7 @@ class AcrobotSystem():
         omg1 = []
         omg2 = []
         input = []
-        while(myapplication.GetDevice().run()):
+        while(myapplication.Run()):
             # LQR contol
             q = [self.joint_rev_gto1, self.motor_1to2]
             input = Feedback(q)
@@ -182,16 +172,15 @@ class AcrobotSystem():
             omg1.append(q[0].GetMotorRot_dt())
             omg2.append(q[1].GetMotorRot_dt())
             
-            
-            myapplication.BeginScene(True, True, chrirr.SColor(160,125,125,125))
-            myapplication.DrawAll()
-            
             # Visualise frames and links
-            chrirr.drawAllLinkframes(self.chrono_system, myapplication.GetVideoDriver(),1)
-            chrirr.drawAllLinks(self.chrono_system, myapplication.GetVideoDriver(),1)
+            chrirr.drawAllLinkframes(myapplication)
+            chrirr.drawAllLinks(myapplication)
             
-            myapplication.DoStep()
+            myapplication.BeginScene(True, True, chrono.ChColor(0.1,0.1,0.5))
+            myapplication.Render()
+            self.chrono_system.DoStepDynamics(time_step)
             myapplication.EndScene()
+            
             # Condition stop simulate
             if self.chrono_system.GetChTime() > time:
                 myapplication.GetDevice().closeDevice()

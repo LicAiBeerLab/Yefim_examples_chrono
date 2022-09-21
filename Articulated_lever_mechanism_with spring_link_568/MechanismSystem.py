@@ -21,20 +21,15 @@ class MechanismSystem():
         self.radius_link = min([self.link_1, self.link_2, self.link_5])/10 #[m] cut size link
 
     def CreateBodies(self):
-        color_mag = chr.ChColorAsset()
-        color_mag.SetColor(chr.ChColor(200, 0, 200)) # magenta
+        color_mag = chr.ChColor(1, 0, 1) # magenta
         
-        color_cyan = chr.ChColorAsset()
-        color_cyan.SetColor(chr.ChColor(0, 255, 120)) # cyan
+        color_cyan = chr.ChColor(0, 1, 1) # cyan
         
-        color_yellow = chr.ChColorAsset()
-        color_yellow.SetColor(chr.ChColor(200, 200, 0)) # yellow
+        color_yellow = chr.ChColor(1, 1, 0) # yellow
         
-        color_green = chr.ChColorAsset()
-        color_green.SetColor(chr.ChColor(0, 200, 0)) #  green
+        color_green = chr.ChColor(0, 1, 0) #  green
         
-        color_red = chr.ChColorAsset()
-        color_red.SetColor(chr.ChColor(200, 0, 0)) #  red
+        color_red = chr.ChColor(1, 0, 0) #  red
         
         
         
@@ -42,7 +37,7 @@ class MechanismSystem():
         self.body_link_1.SetPos(chr.ChVectorD(0,0,0))
         self.body_link_1.SetRot(chr.Q_from_AngZ(np.arctan(1)))
         self.body_link_1.SetBodyFixed(True)
-        self.body_link_1.AddAsset(color_mag)
+        self.body_link_1.GetVisualShape(0).SetColor(color_mag)
         self.chr_system.Add(self.body_link_1)
         
         # create frame for next joint in first link's frame
@@ -60,7 +55,7 @@ class MechanismSystem():
         self.body_link_5.SetPos(vec_05)
         self.body_link_5.SetRot(self.frame_05.GetRot())
         self.body_link_5.SetBodyFixed(True)
-        self.body_link_5.AddAsset(color_cyan)
+        self.body_link_5.GetVisualShape(0).SetColor(color_cyan)
         self.chr_system.Add(self.body_link_5)
 
         # same operations for sixth link
@@ -74,14 +69,14 @@ class MechanismSystem():
         self.body_link_6.SetPos(vec_06)
         self.body_link_6.SetRot(self.frame_06.GetRot())
         self.body_link_6.SetBodyFixed(True)
-        self.body_link_6.AddAsset(color_yellow)
+        self.body_link_6.GetVisualShape(0).SetColor(color_yellow)
         self.chr_system.Add(self.body_link_6)
         
         self.body_link_2 = chr.ChBodyEasyCylinder(self.radius_link,self.link_2,self.density)
         self.body_link_2.SetPos(chr.ChVectorD(0,self.y_AB,0))
         self.body_link_2.SetRot(chr.Q_ROTATE_X_TO_Y)
         self.body_link_2.SetBodyFixed(True)
-        self.body_link_2.AddAsset(color_green)
+        self.body_link_2.GetVisualShape(0).SetColor(color_green)
         self.chr_system.Add(self.body_link_2)
         
         
@@ -89,14 +84,14 @@ class MechanismSystem():
         self.body_link_3.SetPos(chr.ChVectorD(0,-self.y_AB,0))
         self.body_link_3.SetRot(chr.Q_ROTATE_X_TO_Y)
         self.body_link_3.SetBodyFixed(True)
-        self.body_link_3.AddAsset(color_red)
+        self.body_link_3.GetVisualShape(0).SetColor(color_red)
         self.chr_system.Add(self.body_link_3)
         
         
         
     def AddJoints(self):
         
-        #ChLinkRevolute - simple uncontrollable revolute joint without sensor by default 
+        #ChLinkRevolute - simple uncontrollable revolute joint
         joint_15 = chr.ChLinkRevolute()
         joint_15.Initialize(self.body_link_1,self.body_link_5,self.frame_05)
         self.body_link_5.SetBodyFixed(False)
@@ -108,9 +103,19 @@ class MechanismSystem():
         self.body_link_2.SetBodyFixed(False)
         self.chr_system.Add(joint_52)
         
-        ground = chr.ChBodyEasyBox(0.001,0.001,0.001,100,False)
+        ground = chr.ChBodyEasySphere(0.01,100)
         ground.SetBodyFixed(True)
         self.chr_system.Add(ground)
+        
+        stand_1 = chr.ChBodyEasySphere(0.01,100)
+        stand_1.SetBodyFixed(True)
+        stand_1.SetPos(chr.ChVectorD(-self.link_2/2,self.l_BC/2,0))
+        self.chr_system.Add(stand_1)
+        
+        stand_2 = chr.ChBodyEasySphere(0.01,100)
+        stand_2.SetBodyFixed(True)
+        stand_2.SetPos(chr.ChVectorD(-self.link_2/2,-self.y_AB,0))
+        self.chr_system.Add(stand_2)
         
         joint_02 = chr.ChLinkRevolute()
         joint_02.Initialize(ground,self.body_link_2,
@@ -153,48 +158,39 @@ class MechanismSystem():
         spring.Initialize(self.body_link_2, self.body_link_3,
                           True, # Position are relative
                           chr.ChVectorD(0,-0.8*self.link_2/2,0), # position spring connection relative link 2 
-                          chr.ChVectorD(0,-0.8*self.link_2/2,0),
-                          True, # Auto resting length
-                          rel_len_spring)
+                          chr.ChVectorD(0,-0.8*self.link_2/2,0))
+        spring.SetRestLength(rel_len_spring)
         spring.SetSpringCoefficient(spring_coeff)
         spring.SetDampingCoefficient(damping_coeff)
         
         # Visualise spring
-        color_spring = chr.ChColorAsset()
-        color_spring.SetColor(chr.ChColor(0,0.5,0))
-        spring.AddAsset(color_spring)
-        spring.AddAsset(chr.ChPointPointSpring(0.01,80,15))
+        spring.AddVisualShape(chr.ChSpringShape(0.01,80,15))
         
         self.chr_system.AddLink(spring)
         
         
         
     def Simulate(self, time_stop=6, time_step=0.001):
-        myapplication = chrirr.ChIrrApp(self.chr_system, 'Articualted-lever mechanism with sptink link',
-                                        chrirr.dimension2du(1280,720))
-
-        myapplication.AddTypicalSky()
-        myapplication.AddTypicalCamera(chrirr.vector3df(0,0,0.5))
-        myapplication.AddLightWithShadow(chrirr.vector3df(0,0,1.7),    # point
-                                        chrirr.vector3df(0,0,0),    # aimpoint
-                                        9,                 # radius (power)
-                                        1,9,               # near, far
-                                        60)                # angle of FOV
-        myapplication.AssetBindAll()
-        myapplication.AssetUpdateAll()
-        myapplication.AddShadowAll()
+        myapplication = chrirr.ChVisualSystemIrrlicht()
+        myapplication.AttachSystem(self.chr_system)
+        myapplication.SetWindowSize(1280,720)
+        myapplication.SetWindowTitle("Articualted-lever mechanism with sptink link")
+        myapplication.Initialize()
+        myapplication.AddCamera(chr.ChVectorD(0,0,0.5))
+        myapplication.AddTypicalLights()
         
         time = []
         ang_motorA = []
         omg_motorA = []
         
-        myapplication.SetTimestep(time_step)
-        myapplication.SetTryRealtime(True)
-        while(myapplication.GetDevice().run()):
-            myapplication.BeginScene()
-            myapplication.DrawAll()
+        while(myapplication.Run()):
+            self.chr_system.Update()
+            self.chr_system.DoStepDynamics(time_step)
+            myapplication.BeginScene(True, True, chr.ChColor(0.2, 0., 0.3))
+            myapplication.Render()
+            myapplication.EndScene()
             
-            chrirr.drawAllLinkframes(self.chr_system, myapplication.GetVideoDriver(),1)
+            chrirr.drawAllLinkframes(myapplication)
 
             time.append(self.chr_system.GetChTime())
             ang_motorA.append(self.motorA.GetMotorRot())
@@ -202,12 +198,10 @@ class MechanismSystem():
             
             if np.mod(self.chr_system.GetChTime(),3) > 1.5:
                 self.motorA.SetTorqueFunction(chr.ChFunction_Const(0))
-            else :
+            else:
                 func_torque =chr.ChFunction_Ramp(0,-0.9)
                 self.motorA.SetTorqueFunction(func_torque)    
                 
-            myapplication.DoStep()
-            myapplication.EndScene()
             if self.chr_system.GetChTime() > time_stop:
                 myapplication.GetDevice().closeDevice()
         return time, ang_motorA, omg_motorA

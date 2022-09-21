@@ -34,7 +34,7 @@ class Simulate:
                                         ground_material)
         ground_body.SetPos(chr.ChVectorD(GROUND_DIM[0]/2-0.5,0,0))
         ground_body.SetBodyFixed(True)
-        
+        ground_body.GetVisualShape(0).SetColor(chr.ChColor(0.1,0.1,0.1))
         self.__chr_system.Add(ground_body)
         
         # Planar joint
@@ -44,23 +44,14 @@ class Simulate:
         self.__chr_system.Add(z_bound_robot)
         
         
-    def initilizeAnimation(self):
-        self.__myapplication = chrirr.ChIrrApp(self.__chr_system, 'Simulate_Quadruped',
-                                        chrirr.dimension2du(1280,720))
-
-        self.__myapplication.AddTypicalSky()
-        self.__myapplication.AddTypicalCamera(chrirr.vector3df(0,0,1.7))
-        self.__myapplication.AddLightWithShadow(chrirr.vector3df(2,4,2),    # point
-                                        chrirr.vector3df(0,0,0),    # aimpoint
-                                        9,                 # radius (power)
-                                        1,9,               # near, far
-                                        60)                # angle of FOV
-        self.__myapplication.AssetBindAll()
-        self.__myapplication.AssetUpdateAll()
-        self.__myapplication.AddShadowAll()
-        
-        self.__myapplication.SetTimestep(self.__time_step)
-        self.__myapplication.SetTryRealtime(False)
+    def initilizeAnimation(self):   
+        self.__myapplication = chrirr.ChVisualSystemIrrlicht()
+        self.__myapplication.AttachSystem(self.__chr_system)
+        self.__myapplication.SetWindowSize(1280,720)
+        self.__myapplication.SetWindowTitle("Simulate_Quadruped")
+        self.__myapplication.Initialize()
+        self.__myapplication.AddCamera(chr.ChVectorD(1.7,1.7,1.7))
+        self.__myapplication.AddTypicalLights()
     
     def FlagsStopSimulate(self,curr_time, testing=False):
         coord = self.__model_quadruped.getCoordCorpus()
@@ -103,20 +94,21 @@ class Simulate:
     def start(self):
         self.__final_time = 0.
         self.__final_coord_x = 0.
-        while(self.__myapplication.GetDevice().run()):
-            self.__myapplication.BeginScene()
-            self.__myapplication.DrawAll()
+        while(self.__myapplication.Run()):
+            self.__myapplication.BeginScene(True, True, chr.ChColor(0.2, 0., 0.3))
+            self.__myapplication.Render()
+            self.__chr_system.DoStepDynamics(self.__time_step)
+            self.__myapplication.EndScene()
+            
             curr_time = self.__chr_system.GetChTime()
             self.__model_quadruped.updateControlLegs(curr_time)
             stop = self.FlagsStopSimulate(curr_time, True)
-            self.__myapplication.DoStep()
-            self.__myapplication.EndScene()
             
             self.__final_time = curr_time
             self.__final_coord_x = self.__model_quadruped.getCoordCorpus().x
             self.__model_quadruped.update(curr_time)
             if stop:
-                self.__myapplication.GetDevice().closeDevice()
+               self.__myapplication.GetDevice().closeDevice()
         print(f"x_stop: {self.__final_coord_x}, time_stop: {self.__final_time}, agressive: {self.__model_quadruped.getLocomotion().getAggressiveness()}")
         del self.__myapplication
     
